@@ -8,11 +8,11 @@ let handler = async (m, { conn }) => {
   const rwait = '⏳';
   const done = '✅';
   const error = '❌';
-  const dev = '👑 Shadow-BOT-MD 🎄❄️';
+  const dev = '👻*Michi wabot*👻';
 
   let q = m.quoted ? m.quoted : m;
   let mime = (q.msg || q).mimetype || '';
-  if (!mime) return conn.reply(m.chat, `${emoji} 🌌 *Las sombras requieren un archivo válido (imagen, video, etc.).*`, m);
+  if (!mime) return conn.reply(m.chat, `${emoji} 👻 *envía un archivo válido (imagen, video, etc.).*`, m);
 
   await m.react(rwait);
 
@@ -20,22 +20,21 @@ let handler = async (m, { conn }) => {
     let media = await q.download();
     if (!media || !Buffer.isBuffer(media)) {
       await m.react(error);
-      return conn.reply(m.chat, `${emoji} ❄️ *Las sombras no pudieron descargar el archivo.*`, m);
+      return conn.reply(m.chat, `${emoji} 👻 *lo siento no pude descargar el archivo.*`, m);
     }
 
     let isTele = /image\/(png|jpe?g|gif)|video\/mp4/.test(mime);
     let link = await catbox(media);
 
-    let txt = `╔══✦🌌🎄✦══╗
-   𝐒𝐇𝐀𝐃𝐎𝐖 𝐆𝐀𝐑𝐃𝐄𝐍 ❄️
-   𝐂𝐀𝐓𝐁𝐎𝐗 𝐔𝐏𝐋𝐎𝐀𝐃𝐄𝐑
-╚══✦🌌🎄✦══╝
+    let txt = `╔══✦👻🖤✦══╗
+   *Michi wabot*
+╚══👻🤍✦══╝
 
 📂 *Enlace*: ${link}
 📏 *Tamaño*: ${formatBytes(media.length)}
 ⏳ *Expiración*: ${isTele ? 'No expira' : 'Desconocido'}
 
-✨ *Invocado por:* ${dev}
+🖤 *Invocado por:* Michi wabot
 `;
 
     // Enviar archivo con sendMessage
@@ -50,7 +49,7 @@ let handler = async (m, { conn }) => {
   } catch (err) {
     console.error('Error completo:', err);
     await m.react(error);
-    conn.reply(m.chat, `${emoji} 🌌❄️ *Error al subir el archivo:*\n${err.message}`, m);
+    conn.reply(m.chat, `${emoji} 👻🖤 *Error al subir el archivo:*\n${err.message}`, m);
   }
 };
 
