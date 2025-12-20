@@ -261,3 +261,24 @@ export async function ask(prompt, previousId = null) {
   }
   throw lastErr || new Error('Error')
 }
+async function consultarGemini(pregunta) {
+  try {
+    const respuesta = await ask(pregunta)
+    return `🤖 *Respuesta de Gemini:*\n\n${respuesta.text}\n\n🔹 *Créditos: WILKER OFC* 🔹`
+  } catch (error) {
+    return `❌ Error: ${error.message}\n\n🔹 *Créditos: WILKER OFC* 🔹`
+  }
+}
+
+let handler = async (m, { usedPrefix, command, text }) => {
+  if (!text) return m.reply(`Usa: ${usedPrefix + command} [tu pregunta]\nEjemplo: ${usedPrefix + command} Hola`)
+  
+  const respuesta = await consultarGemini(text)
+  m.reply(respuesta)
+}
+
+handler.help = ['gemini']
+handler.tags = ['ia'] 
+handler.command = ['aigemini', 'gemini']
+
+export default handler
