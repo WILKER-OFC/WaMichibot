@@ -1,79 +1,22 @@
-import axios from 'axios';
-import fs from 'fs';
-import path from 'path';
-import sharp from 'sharp';
-import {
-    tmpdir
-} from 'os';
-const delay = (ms) => new Promise(resolve => setTimeout(resolve, ms));
+let handler = async (m, { conn, text, usedPrefix, command }) => {
+let teks = text ? text : m.quoted && m.quoted.text ? m.quoted.text : ''
 
-const fetchSticker = async (text, attempt = 1) => {
-    try {
-        const response = await axios.get(`https://kepolu-brat.hf.space/brat`, {
-            params: {
-                q: text
-            },
-            responseType: 'arraybuffer',
-        });
-        return response.data;
-    } catch (error) {
-        if (error.response?.status === 429 && attempt <= 3) {
-            const retryAfter = error.response.headers['retry-after'] || 5;
-            await delay(retryAfter * 1000);
-            return fetchSticker(text, attempt + 1);
-        }
-        throw error;
-    }
-};
+if (command == 'txt' || command == 'escribir') {
+if (!teks) return m.reply(`⚠️ 𝙌𝙐𝙀 𝙀𝙎𝘾𝙍𝙄𝘽𝙄𝙊? 𝙐𝙎𝘼𝙍 𝙀𝙎𝙏𝙀 𝘾𝙊𝙈𝘼𝙉𝘿𝙊 𝘿𝙀 𝙇𝘼 𝙎𝙄𝙂𝙐𝙄𝙀𝙉𝙏𝙀 𝙁𝙊𝙍𝙈𝘼\n\n𝙀𝙅𝙀𝙈𝙋𝙇𝙊: *${usedPrefix + command}* Hola Michi wabot`)
+let img = `${global.APIs.fgmods.url}/maker/txt?text=${encodeURIComponent(teks)}&apikey=${global.APIs.fgmods.key}`;
+conn.sendFile(m.chat, img, 'img.png', `✍🏻 𝙀𝙎𝙏𝘼 𝙇𝙄𝙎𝙏𝙊!!\n${info.wm}`, m);
+}
 
-const handler = async (m, {
-    text,
-    conn
-}) => {
-    if (!text) {
-        return conn.sendMessage(m.chat, {
-            text: '*[ ℹ️ ] Agrega un texto.*',
-        }, {
-            quoted: m
-        });
-    }
-
-    try {
-        const buffer = await fetchSticker(text);
-        const outputFilePath = path.join(tmpdir(), `sticker-${Date.now()}.webp`);
-        await sharp(buffer)
-            .resize(512, 512, {
-                fit: 'contain',
-                background: {
-                    r: 255,
-                    g: 255,
-                    b: 255,
-                    alpha: 0
-                }
-            })
-            .webp({
-                quality: 80
-            })
-            .toFile(outputFilePath);
-
-        await conn.sendMessage(m.chat, {
-            sticker: {
-                url: outputFilePath
-            },
-        }, {
-            quoted: fkontak
-        });
-        fs.unlinkSync(outputFilePath);
-    } catch (error) {
-        return conn.sendMessage(m.chat, {
-            text: `*[ ❌ ] Error en la API.*`,
-        }, {
-            quoted: m
-        });
-    }
-};
-handler.command = ['brat'];
-handler.tags = ['sticker'];
-handler.help = ['brat'];
-
-export default handler;
+if (command == 'carbon') {    
+if (!teks) return m.reply(`⚠️ Ingresar en texto\nEj: *${usedPrefix + command}* case "hola":\nm.reply("que onda")\nbreak`)
+//let res = `${info.APIs.fgmods.url}/maker/carbon?text=${teks}&apikey=${info.APIs.fgmods.key}`
+let res = `https://www.archive-ui.biz.id/api/maker/carbonify?text=${teks}`
+await conn.sendFile(m.chat, res, 'error.jpg', null, m)
+}
+}
+handler.help = ['txt', 'brat']
+handler.tags = ['game']
+handler.command = ['txt', 'escribir', 'carbon']
+handler.limit = 1
+handler.register = true 
+export default handler
