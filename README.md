@@ -61,7 +61,7 @@ Sigue estos pasos para instalar y ejecutar Michi-WaBot en tu dispositivo.
 
     <div align="center">
       <a href="https://github.com/WILKER-OFC">
-        <img src="https://github.com/Ado-rgb.png" alt="WILKER's GitHub Profile Picture" width="80" style="border-radius:50%;" />
+        <img src="https://github.com/WILKER-OFC.png" alt="WILKER-OFC's GitHub Profile Picture" width="80" style="border-radius:50%;" />
       </a>
     </div>
 
@@ -83,6 +83,5 @@ Sigue estos pasos para instalar y ejecutar Michi-WaBot en tu dispositivo.
 
 Este proyecto está bajo la **Licencia MIT**. Puedes usar, modificar y distribuir el código libremente, siempre y cuando mantengas los créditos originales.
 
-© 2025 Ado.
 
 © 2026 WILKER OFC.
