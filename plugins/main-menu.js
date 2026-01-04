@@ -25,7 +25,7 @@ const defaultMenu = {
 🌤 Hola, soy %botname *( %tipo )*
 *%name*, %greeting
 
-🪪 *CANAL :* https://whatsapp.com/channel/0029Vb6sgWdJkK73qeLU0J0N
+🪪 *CANAL :* https://whatsapp.com/channel/0029Vb724SDHltY4qGU9QS3S
 
 > 🥮 Fecha = *%date*
 > 🍿 Actividad = *%uptime*
