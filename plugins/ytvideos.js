@@ -68,7 +68,7 @@ const downloadVideo = async (conn, m, url, title, thumbnail) => {
       )
     }
 
-    const apiUrl = `https://api-adonix.ultraplus.click/download/ytvideo?url=${encodeURIComponent(url)}&apikey=WilkerKeydukz9l6871`
+    const apiUrl = `https://api-adonix.ultraplus.click/download/ytvideo?url=${encodeURIComponent(url)}&apikey=Mikeywilker1`
 
     const response = await fetch(apiUrl)
     const data = await response.json()
