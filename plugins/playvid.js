@@ -38,6 +38,11 @@ export default handler
 async function getAud(url) {
 const apis = [
 { 
+  api: 'Sky API', 
+  endpoint: `https://api-sky.ultraplus.click/youtube-mp3?apikey=MIKEYWILKER&url=${encodeURIComponent(url)}`, 
+  extractor: res => res.result?.url || res.url || res.downloadUrl || res.link
+},
+{ 
   api: 'Adonix', 
   endpoint: `https://api-adonix.ultraplus.click/download/ytaudio?apikey=MIKEY2026&url=${encodeURIComponent(url)}`, 
   extractor: res => res.data?.url 
