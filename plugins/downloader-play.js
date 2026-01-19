@@ -1,219 +1,126 @@
-import yts from 'yt-search'
+import { spawn } from 'child_process'
+import fs from 'fs'
+import fetch from 'node-fetch'
 
-const MAX_SECONDS = 90 * 60
-const HTTP_TIMEOUT_MS = 90 * 1000
-
-function parseDurationToSeconds(d) {
-  if (d == null) return null
-  if (typeof d === 'number' && Number.isFinite(d)) return Math.max(0, Math.floor(d))
-  const s = String(d).trim()
-  if (!s) return null
-  if (/^\d+$/.test(s)) return Math.max(0, parseInt(s, 10))
-  const parts = s.split(':').map((x) => x.trim()).filter(Boolean)
-  if (!parts.length || parts.some((p) => !/^\d+$/.test(p))) return null
-  let sec = 0
-  for (const p of parts) sec = sec * 60 + parseInt(p, 10)
-  return Number.isFinite(sec) ? sec : null
-}
-
-function formatErr(err, maxLen = 1500) {
-  const e = err ?? 'Error desconocido'
-  let msg = ''
-
-  if (e instanceof Error) msg = e.stack || `${e.name}: ${e.message}`
-  else if (typeof e === 'string') msg = e
-  else {
-    try {
-      msg = JSON.stringify(e, null, 2)
-    } catch {
-      msg = String(e)
+const yt = {
+  static: Object.freeze({
+    baseUrl: 'https://cnv.cx',
+    headers: {
+      'accept-encoding': 'gzip, deflate, br, zstd',
+      'origin': 'https://frame.y2meta-uk.com',
+      'user-agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/142.0.0.0 Safari/537.36 Edg/142.0.0.0'
     }
-  }
-
-  msg = String(msg || 'Error desconocido').trim()
-  if (msg.length > maxLen) msg = msg.slice(0, maxLen) + '\n... (recortado)'
-  return msg
-}
-
-async function fetchJson(url, timeoutMs = HTTP_TIMEOUT_MS) {
-  const ctrl = new AbortController()
-  const t = setTimeout(() => ctrl.abort(), timeoutMs)
-  try {
-    const res = await fetch(url, {
-      method: 'GET',
-      signal: ctrl.signal,
-      headers: { accept: 'application/json', 'user-agent': 'Mozilla/5.0' }
-    })
-    const text = await res.text().catch(() => '')
-    let data = null
-    try {
-      data = text ? JSON.parse(text) : null
-    } catch {
-      data = null
-    }
-    if (!res.ok) {
-      const msg = data?.message || data?.error || text || `HTTP ${res.status}`
-      throw new Error(`HTTP ${res.status}: ${String(msg).slice(0, 400)}`)
-    }
-    if (data == null) throw new Error('Respuesta JSON inválida')
-    return data
-  } finally {
-    clearTimeout(t)
-  }
-}
-
-async function fetchBuffer(url, timeoutMs = HTTP_TIMEOUT_MS) {
-  const ctrl = new AbortController()
-  const t = setTimeout(() => ctrl.abort(), timeoutMs)
-  try {
-    const res = await fetch(url, { signal: ctrl.signal, headers: { 'user-agent': 'Mozilla/5.0' } })
-    if (!res.ok) throw new Error(`No se pudo bajar el audio (HTTP ${res.status})`)
-    const ab = await res.arrayBuffer()
+  }),
+  log(m) { console.log(`[yt-skrep] ${m}`) },
+  resolveConverterPayload(link, f = '128k') {
+    const formatos = ['128k', '320k', '144p', '240p', '360p', '720p', '1080p']
+    if (!formatos.includes(f)) throw Error(`Formato inválido. Formatos disponibles: ${formatos.join(', ')}`)
+    const tipo = f.endsWith('k') ? 'mp3' : 'mp4'
+    const audioBitrate = tipo === 'mp3' ? parseInt(f) + '' : '128'
+    const videoQuality = tipo === 'mp4' ? parseInt(f) + '' : '720'
+    return { link, format: tipo, audioBitrate, videoQuality, filenameStyle: 'pretty', vCodec: 'h264' }
+  },
+  sanitizeFileName(n) {
+    const ext = n.match(/\.[^.]+$/)[0]
+    const name = n.replace(new RegExp(`\\${ext}$`), '').replaceAll(/[^A-Za-z0-9]/g, '_').replace(/_+/g, '_').toLowerCase()
+    return name + ext
+  },
+  async getBuffer(u) {
+    const h = structuredClone(this.static.headers)
+    h.referer = 'https://v6.www-y2mate.com/'
+    h.range = 'bytes=0-'
+    delete h.origin
+    const r = await fetch(u, { headers: h })
+    if (!r.ok) throw Error(`${r.status} ${r.statusText}`)
+    const ab = await r.arrayBuffer()
     return Buffer.from(ab)
-  } finally {
-    clearTimeout(t)
+  },
+  async getKey() {
+    const r = await fetch(this.static.baseUrl + '/v2/sanity/key', { headers: this.static.headers })
+    if (!r.ok) throw Error(`${r.status} ${r.statusText}`)
+    return await r.json()
+  },
+  async convert(u, f) {
+    const { key } = await this.getKey()
+    const p = this.resolveConverterPayload(u, f)
+    const h = { key, ...this.static.headers }
+    const r = await fetch(this.static.baseUrl + '/v2/converter', { headers: h, method: 'post', body: new URLSearchParams(p) })
+    if (!r.ok) throw Error(`${r.status} ${r.statusText}`)
+    return await r.json()
+  },
+  async download(u, f) {
+    const { url, filename } = await this.convert(u, f)
+    const buffer = await this.getBuffer(url)
+    return { fileName: this.sanitizeFileName(filename), buffer }
   }
 }
 
-function guessMimeFromUrl(fileUrl = '') {
-  let ext = ''
-  try {
-    ext = new URL(fileUrl).pathname.split('.').pop() || ''
-  } catch {
-    ext = String(fileUrl).split('.').pop() || ''
-  }
-  ext = '.' + String(ext).toLowerCase().replace(/[^a-z0-9]/g, '')
-  if (ext === '.m4a') return 'audio/mp4'
-  if (ext === '.opus') return 'audio/ogg; codecs=opus'
-  if (ext === '.webm') return 'audio/webm'
-  return 'audio/mpeg'
+// Convertir video a faststart
+async function convertToFast(buffer) {
+  const tempIn = './temp_in.mp4'
+  const tempOut = './temp_out.mp4'
+  fs.writeFileSync(tempIn, buffer)
+  await new Promise((res, rej) => {
+    const ff = spawn('ffmpeg', ['-i', tempIn, '-c', 'copy', '-movflags', 'faststart', tempOut])
+    ff.on('close', code => code === 0 ? res() : rej(new Error('Error al convertir con ffmpeg')))
+  })
+  const newBuffer = fs.readFileSync(tempOut)
+  fs.unlinkSync(tempIn)
+  fs.unlinkSync(tempOut)
+  return newBuffer
 }
 
-let handler = async (m, { conn, text, usedPrefix, command }) => {
-  const chatId = m?.chat || m?.key?.remoteJid
-  if (!chatId) return
-
-  if (!text) {
-    return conn.sendMessage(
-      chatId,
-      { text: `「✦」Escribe el nombre o link del video.\n> ✐ Ejemplo » *${usedPrefix + command} lovely*` },
-      { quoted: m }
-    )
-  }
-
-  await conn.sendMessage(chatId, { react: { text: '🕒', key: m.key } }).catch(() => {})
-
-  let ytUrl = text.trim()
-  let ytInfo = null
+// Handler audio (ytmp3)
+let handler = async (m, { conn, args, command }) => {
+  if (!args[0]) return m.reply(`*\`🧇 ESCRIBE UN LINK DE YOUTUBE, PARA DARTE EL AUDIO\`*`)
 
   try {
-    if (!/youtu\.be|youtube\.com/i.test(ytUrl)) {
-      const search = await yts(ytUrl)
-      const first = search?.videos?.[0]
-      if (!first) {
-        await conn.sendMessage(chatId, { text: '「✦」No se encontraron resultados.' }, { quoted: m })
-        return
-      }
-      ytInfo = first
-      ytUrl = first.url
-    } else {
-      const search = await yts({ query: ytUrl, pages: 1 })
-      if (search?.videos?.length) ytInfo = search.videos[0]
-    }
+    await m.react('🕓') // reacción mientras descarga
+    const formato = args[1] || '128k'
+    const { buffer, fileName } = await yt.download(args[0], formato)
+
+    await conn.sendMessage(m.chat, {
+      audio: buffer,
+      mimetype: 'audio/mpeg',
+      fileName
+    }, { quoted: m })
+
+    await m.react('✅️') // reacción al terminar
   } catch (e) {
-    await conn.sendMessage(
-      chatId,
-      { text: `「✦」Error buscando en YouTube.\n\n> 🧩 Error:\n\`\`\`\n${formatErr(e)}\n\`\`\`` },
-      { quoted: m }
-    )
-    return
-  }
-
-  const durSec =
-    parseDurationToSeconds(ytInfo?.duration?.seconds) ??
-    parseDurationToSeconds(ytInfo?.seconds) ??
-    parseDurationToSeconds(ytInfo?.duration) ??
-    parseDurationToSeconds(ytInfo?.timestamp)
-
-  if (durSec && durSec > MAX_SECONDS) {
-    await conn.sendMessage(
-      chatId,
-      { text: `「✦」Audio muy largo.\n> Máx: ${Math.floor(MAX_SECONDS / 60)} min.` },
-      { quoted: m }
-    )
-    return
-  }
-
-  const title = ytInfo?.title || 'Audio'
-  const author = ytInfo?.author?.name || ytInfo?.author || 'Desconocido'
-  const duration = ytInfo?.timestamp || 'Desconocida'
-  const thumbnail = ytInfo?.thumbnail
-
-  const caption =
-    `「✦」Enviando *${title}*\n\n` +
-    `> ❀ Canal » *${author}*\n` +
-    `> ⴵ Duración » *${duration}*\n` +
-    `> 🜸 Link » ${ytUrl}`
-
-  try {
-    if (thumbnail) await conn.sendMessage(chatId, { image: { url: thumbnail }, caption }, { quoted: m })
-    else await conn.sendMessage(chatId, { text: caption }, { quoted: m })
-  } catch {}
-
-  const apiKey = 'Mikeywilker1'
-  let apiResp = null
-  
-  try {
-    const apiUrl = `https://api-adonix.ultraplus.click/download/ytaudio?apikey=${apiKey}&url=${encodeURIComponent(ytUrl)}`
-    
-    apiResp = await fetchJson(apiUrl, HTTP_TIMEOUT_MS)
-  } catch (e) {
-    await conn.sendMessage(
-      chatId,
-      { text: `「✦」Error usando la API.\n\n> 🧩 Error:\n\`\`\`\n${formatErr(e)}\n\`\`\`` },
-      { quoted: m }
-    )
-    return
-  }
-
-  if (!apiResp?.status || !apiResp?.data?.url) {
-    await conn.sendMessage(
-      chatId,
-      { text: `「✦」La API no devolvió un link válido.\n\n> Respuesta:\n\`\`\`\n${String(JSON.stringify(apiResp, null, 2)).slice(0, 1500)}\n\`\`\`` },
-      { quoted: m }
-    )
-    return
-  }
-
-  const directUrl = String(apiResp.data.url)
-  const apiTitle = apiResp?.data?.title || title
-
-  try {
-    const audioBuffer = await fetchBuffer(directUrl, HTTP_TIMEOUT_MS)
-    const mime = guessMimeFromUrl(directUrl)
-
-    await conn.sendMessage(
-      chatId,
-      {
-        audio: audioBuffer,
-        mimetype: mime,
-        fileName: `${apiTitle}.mp3`
-      },
-      { quoted: m }
-    )
-
-    await conn.sendMessage(chatId, { react: { text: '✔️', key: m.key } }).catch(() => {})
-  } catch (e) {
-    await conn.sendMessage(
-      chatId,
-      { text: `「✦」Error descargando/enviando el audio.\n\n> 🧩 Error:\n\`\`\`\n${formatErr(e)}\n\`\`\`` },
-      { quoted: m }
-    )
+    return m.reply(`❌ Ocurrió un error: ${e.message}`)
   }
 }
 
-handler.help = ['play <texto|link>']
-handler.tags = ['multimedia']
-handler.command = ['play']
+// Handler video (ytmp4)
+let handler2 = async (m, { conn, args, command }) => {
+  if (!args[0]) return m.reply(`*Ejemplo:* .${command} https://youtu.be/JiEW1agPqNY`)
+
+  try {
+    await m.react('🕓') // reacción mientras descarga
+    const formato = args[1] || '720p'
+    let { buffer, fileName } = await yt.download(args[0], formato)
+    buffer = await convertToFast(buffer)
+
+    await conn.sendMessage(m.chat, {
+      video: buffer,
+      mimetype: 'video/mp4',
+      fileName
+    }, { quoted: m })
+
+    await m.react('✅️') // reacción al terminar
+  } catch (e) {
+    return m.reply(`❌ Ocurrió un error: ${e.message}`)
+  }
+}
+
+// Comandos
+handler.help = ['play <texto> <link>']
+handler.tags = ['dl']
+handler.command = ['ytmp3', 'yta', 'ytmp3vd']
+
+handler2.help = ['ytmp4 <link>']
+handler2.tags = ['dl']
+handler2.command = ['ytmp4', 'ytv', 'ytvideovd']
 
 export default handler
+export { handler2 }
