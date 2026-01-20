@@ -1,117 +1,54 @@
-import axios from "axios"
+import axios from 'axios';
 
-const API_BASE = "https://gawrgura-api.onrender.com/download/facebook?url="
-
-function isValidUrl(u = "") {
-  try {
-    const url = new URL(u)
-    return /^https?:$/.test(url.protocol)
-  } catch {
-    return false
-  }
-}
-
-function isFacebookUrl(u = "") {
-  return /(?:facebook\.com|fb\.watch)/i.test(u)
-}
-
-function formatUnixSeconds(sec) {
-  const n = Number(sec)
-  if (!Number.isFinite(n) || n <= 0) return "N/A"
-  const d = new Date(n * 1000)
-  if (Number.isNaN(d.getTime())) return "N/A"
-  return d.toLocaleString()
-}
-
-function formatDuration(raw) {
-  const n = Number(raw)
-  if (!Number.isFinite(n) || n <= 0) return "N/A"
-
-  const ms = n >= 1000 && n < 60 * 60 * 1000 ? n : null
-  const seconds = ms ? Math.round(ms / 1000) : (n < 60 * 60 * 24 ? n : null)
-
-  const totalSec = seconds ?? (Number.isFinite(n) ? n : null)
-  if (!totalSec || totalSec <= 0) return String(n)
-
-  const s = Math.floor(totalSec % 60)
-  const m = Math.floor((totalSec / 60) % 60)
-  const h = Math.floor(totalSec / 3600)
-
-  const hh = h ? `${h}h ` : ""
-  const mm = m ? `${m}m ` : ""
-  const ss = `${s}s`
-
-  return ms ? `${hh}${mm}${ss} (aprox, desde ${n}ms)` : `${hh}${mm}${ss}`
-}
-
-let handler = async (m, { conn, text, usedPrefix, command }) => {
-  const chatId = m?.chat || m?.key?.remoteJid
-  if (!chatId) return
-
-  const url = (text || "").trim()
-
-  if (!url || !isValidUrl(url) || !isFacebookUrl(url)) {
-    return await conn.sendMessage(
-      chatId,
-      {
-        text:
-          `「✦」Uso correcto:\n` +
-          `> ✐ ${usedPrefix + command} <link-facebook>\n\n` +
-          `「✦」Ejemplo:\n` +
-          `> ✐ ${usedPrefix + command} https://www.facebook.com/reel/1230818705820254/`
-      },
-      { quoted: m }
-    )
+const handler = async (m, { text, conn, args }) => {
+  if (!args[0]) {
+    return conn.reply(m.chat, '🚩 Por favor, ingresa un enlace de Facebook.', m, rcanal);
   }
 
-  const apiUrl = API_BASE + encodeURIComponent(url)
+  const fbUrl = args[0];
+  let res;
 
   try {
-    await conn.sendMessage(chatId, { react: { text: "🕒", key: m.key } })
-
-    const { data } = await axios.get(apiUrl, {
-      timeout: 60000,
-      headers: { "User-Agent": "Mozilla/5.0" }
-    })
-
-    // Adaptación para la nueva API - estructura diferente
-    if (!data || !data.data) {
-      throw new Error("Respuesta inválida de la API.")
-    }
-
-    const videoData = data.data
-    const videoUrl = videoData?.urls?.hd || videoData?.urls?.sd || ""
-
-    if (!videoUrl || !isValidUrl(videoUrl)) {
-      throw new Error("No se encontró un enlace de video válido (HD/SD).")
-    }
-
-    const caption =
-      `「✦」 *Facebook Downloader*\n\n` +
-      (videoData?.title ? `≡ *Título:* ${videoData.title}\n` : "") +
-      `≡ *Link:* ${url}\n` +
-      (videoData?.duration ? `≡ *Duración:* ${formatDuration(videoData.duration)}\n\n` : "\n")
-
-    await conn.sendMessage(
-      chatId,
-      {
-        video: { url: videoUrl },
-        mimetype: "video/mp4",
-        caption
-      },
-      { quoted: m }
-    )
-
-    await conn.sendMessage(chatId, { react: { text: "✔️", key: m.key } })
+    await m.react('💜');
+    res = await axios.get(`https://apis-starlights-team.koyeb.app/starlight/facebook?url=${fbUrl}`);
   } catch (e) {
-    await conn.sendMessage(chatId, { react: { text: "❌", key: m.key } })
-    const msg = String(e?.message || e || "Error desconocido.")
-    return await conn.sendMessage(chatId, { text: `「✦」Error: ${msg}` }, { quoted: m })
+    return conn.reply(m.chat, 'Error al obtener datos. Verifica el enlace.', m);
+  }
+
+  const result = res.data;
+  if (!result || result.length === 0) {
+    return conn.reply(m.chat, 'No se encontraron resultados.', m);
+  }
+
+  const videoDataHD = result.find(video => video.quality === "720p (HD)");
+  const videoDataSD = result.find(video => video.quality === "360p (SD)");
+
+  const videoUrl = videoDataHD ? videoDataHD.link_hd : videoDataSD ? videoDataSD.link_sd : null;
+
+  if (!videoUrl) {
+    return conn.reply(m.chat, 'No se encontró una resolución adecuada.', m);
+  }
+
+  const maxRetries = 3;
+
+  for (let attempt = 1; attempt <= maxRetries; attempt++) {
+    try {
+      await conn.sendMessage(m.chat, { video: { url: videoUrl }, caption: '🍓 Aquí tienes el video.', fileName: 'fb.mp4', mimetype: 'video/mp4' }, { quoted: m });
+      await m.react('✅');
+      break;
+    } catch (e) {
+      if (attempt === maxRetries) {
+        await m.react('❌');
+        return conn.reply(m.chat, 'Error al enviar el video después de varios intentos.', m);
+      }
+      await new Promise(resolve => setTimeout(resolve, 1000));
+    }
   }
 }
 
-handler.help = ["facebook <url>", "fb <url>", "fbdl <url>"]
-handler.tags = ["downloader"]
-handler.command = ["facebook", "fb"]
+handler.help = ['facebook', 'fb'];
+handler.tags = ['descargas'];
+handler.command = ['facebook', 'fb'];
+handler.register = true;
 
-export default handler
+export default handler;
