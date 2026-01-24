@@ -2,7 +2,7 @@ import yts from "yt-search"
 import fetch from "node-fetch"
 
 const handler = async (m, { conn, text, usedPrefix, command }) => {
-  if (!text) return m.reply(" `Ingresa el nombre del video de YouTube`.")
+  if (!text) return m.reply("🎶 Ingresa el nombre del video de YouTube.")
 
   await m.react("🕘")
 
@@ -43,40 +43,55 @@ const handler = async (m, { conn, text, usedPrefix, command }) => {
     }
 
     const caption = `
-✧━『 𝙸𝚗𝚏𝚘 𝚍𝚎𝚕 𝚊𝚞𝚍𝚒𝚘 』━✧
+✧━───『 𝙸𝚗𝚏𝚘 𝚍𝚎𝚕 𝚅𝚒𝚍𝚎𝚘 』───━✧
 
-🎼 𝚃𝚒𝚝𝚞𝚕𝚘: ${title}
-📺 𝙲𝚊𝚗𝚊𝚕: ${authorName}
-👁️ 𝚅𝚒𝚜𝚝𝚊𝚜: ${vistas}
-⏳ 𝙳𝚞𝚛𝚊𝚌𝚒ó𝚗: ${durationTimestamp}
-🌐 𝙴𝚗𝚕𝚊𝚌𝚎: ${url}
+🎼 𝑻𝒊́𝒕𝒖𝒍𝒐: ${title}
+📺 𝑪𝒂𝒏𝒂𝒍: ${authorName}
+👁️ 𝑽𝒊𝒔𝒕𝒂𝒔: ${vistas}
+⏳ 𝑫𝒖𝒓𝒂𝒄𝒊𝒐́𝒏: ${durationTimestamp}
+🌐 𝑬𝒏𝒍𝒂𝒄𝒆: ${url}
 
-  ✧━『 𝙼𝚒𝚌𝚑𝚒 𝚠𝚊𝚋𝚘𝚝 』━✧
-    ⚡ 𝙱𝚢 𝚆𝙸𝙻𝙺𝙴𝚁 𝙾𝙵𝙲 ⚡
-
-🎵 𝙳𝚎𝚜𝚌𝚊𝚛𝚐𝚊𝚗𝚍𝚘 𝙰𝚞𝚍𝚒𝚘...
+✧━───『 𝑺𝒉𝒂𝒅𝒐𝒘 𝑩𝒐𝒕 』───━✧
+⚡ 𝑷𝒐𝒘𝒆𝒓𝒆𝒅 𝒃𝒚 𝒀𝒐𝒔𝒖𝒆 ⚡
 `
 
     const thumb = (await conn.getFile(thumbnail)).data
-
-    // Enviar primero la info del video
     await conn.sendMessage(
       m.chat,
       {
         image: thumb,
         caption,
-        footer: "⚡ Gohan — Descargas rápidas ⚡",
+        footer: "⚡ Shadow — Descargas rápidas ⚡",
+        buttons: [
+          { buttonId: `shadowaudio ${url}`, buttonText: { displayText: "🎵 𝘿𝙚𝙨𝙘𝙖𝙧𝙜𝙖𝙧 𝘼𝙪𝙙𝙞𝙤" }, type: 1 },
+          { buttonId: `shadowvideo ${url}`, buttonText: { displayText: "🎬 𝘿𝙚𝙨𝙘𝙖𝙧𝙜𝙖𝙧 𝙑𝙞𝙙𝙚𝙤" }, type: 1 }
+        ],
         headerType: 4
       },
       { quoted: fkontak }
     )
 
-    // Descargar y enviar el audio automáticamente
-    await downloadAudio(conn, m, url)
-
+    await m.react("✅")
   } catch (e) {
     m.reply("❌ Error: " + e.message)
     m.react("⚠️")
+  }
+}
+
+handler.before = async (m, { conn }) => {
+  const selected = m?.message?.buttonsResponseMessage?.selectedButtonId
+  if (!selected) return
+
+  const parts = selected.split(" ")
+  const cmd = parts.shift()
+  const url = parts.join(" ")
+
+  if (cmd === "shadowaudio") {
+    return downloadMedia(conn, m, url, "mp3")
+  }
+
+  if (cmd === "shadowvideo") {
+    return downloadMedia(conn, m, url, "mp4")
   }
 }
 
@@ -85,60 +100,55 @@ const fetchBuffer = async (url) => {
   return await response.buffer()
 }
 
-const downloadAudio = async (conn, m, url) => {
+const downloadMedia = async (conn, m, url, type) => {
   try {
-    const sent = await conn.sendMessage(m.chat, { text: "🎵 Descargando audio, por favor espera..." }, { quoted: m })
+    const msg = type === "mp3"
+      ? "🎵 Descargando audio..."
+      : "🎬 Descargando video..."
 
-    const apiUrl = `https://api-adonix.ultraplus.click/download/ytaudio?url=${encodeURIComponent(url)}&apikey=KEYGOHANBOT`
+    const sent = await conn.sendMessage(m.chat, { text: msg }, { quoted: m })
+
+    const apiUrl = type === "mp3"
+      ? `https://api-adonix.ultraplus.click/download/ytaudio?url=${encodeURIComponent(url)}&apikey=SHADOWKEYBOTMD`
+      : `https://api-adonix.ultraplus.click/download/ytvideo?url=${encodeURIComponent(url)}&apikey=SHADOWKEYBOTMD`
 
     const r = await fetch(apiUrl)
     const data = await r.json()
 
-    if (!data?.status || !data?.data?.url) {
-      await conn.sendMessage(
-        m.chat,
-        { text: "🚫 No se pudo descargar el audio.", edit: sent.key }
-      )
-      return
-    }
+    if (!data?.status || !data?.data?.url) return m.reply("🚫 No se pudo descargar el archivo.")
 
     const fileUrl = data.data.url
-    const fileTitle = cleanName(data.data.title || "audio")
+    const fileTitle = cleanName(data.data.title || "video")
 
-    // Descargar el buffer del audio
-    const audioBuffer = await fetchBuffer(fileUrl)
+    if (type === "mp3") {
+      const audioBuffer = await fetchBuffer(fileUrl)
+      await conn.sendMessage(
+        m.chat,
+        { audio: audioBuffer, mimetype: "audio/mpeg", fileName: fileTitle + ".mp3" },
+        { quoted: m }
+      )
+    } else {
+      await conn.sendMessage(
+        m.chat,
+        { video: { url: fileUrl }, mimetype: "video/mp4", fileName: fileTitle + ".mp4" },
+        { quoted: m }
+      )
+    }
 
-    // Enviar el audio
     await conn.sendMessage(
       m.chat,
-      { 
-        audio: audioBuffer, 
-        mimetype: "audio/mpeg", 
-        fileName: fileTitle + ".mp3",
-        caption: `✅ Audio descargado\n\n🎼 Título: ${fileTitle}` 
-      },
-      { quoted: m }
-    )
-
-    // Actualizar mensaje de estado
-    await conn.sendMessage(
-      m.chat,
-      { text: `✅ Audio descargado con éxito`, edit: sent.key }
+      { text: `✅ Descarga completada\n\n🎼 Título: ${fileTitle}`, edit: sent.key }
     )
 
     await m.react("✅")
   } catch (e) {
     console.error(e)
-    await conn.sendMessage(
-      m.chat,
-      { text: "❌ Error al descargar el audio: " + e.message }
-    )
-    await m.react("💀")
+    m.reply("❌ Error: " + e.message)
+    m.react("💀")
   }
 }
 
 const cleanName = (name) => name.replace(/[^\w\s-_.]/gi, "").substring(0, 50)
-
 const formatViews = (views) => {
   if (views === undefined || views === null) return "No disponible"
   if (views >= 1000000000) return `${(views / 1000000000).toFixed(1)}B`
@@ -147,9 +157,8 @@ const formatViews = (views) => {
   return views.toString()
 }
 
-handler.command = ["play",]
+handler.command = ["play", "yt", "ytsearch"]
 handler.tags = ["descargas"]
-handler.help = ["play"]
 handler.register = false
 
 export default handler
