@@ -2,17 +2,18 @@ import { watchFile, unwatchFile } from 'fs'
 import chalk from 'chalk'
 import { fileURLToPath } from 'url'
 
+// 👑 Dueños del bot
 global.owner = [
-  ['5492644893953', 'wilker', true],
-  ['584125877491'],
-  ['156981591593126'],
-  ['595972314588']
+  ['5492644138998', 'WILKER', true],
+  ['5492644893953','wilker', true],
+  ['573245517485', 'ania', true],
+  ['595972314588', 'soporte', true]
 ]
 
-global.mods = []
-global.prems = []
+global.mods = []      // Moderadores
+global.prems = []     // Usuarios premium
 
-// APIs Configuration
+// 🌸 APIs Configuration
 global.APIs = {
   xyro: { 
     url: "https://api.xyro.site", 
@@ -40,43 +41,98 @@ global.APIs = {
   },
   adonix: { 
     url: "https://api-adonix.ultraplus.click", 
-    key: 'AdonixKey4vqkxt2009' 
+    key: 'KEYGOHANBOT' 
+  },
+  ania: {
+    url: "https://api-ania.vercel.app",
+    key: "ania_kawaii_2025"
   }
 }
 
+// 🎀 ANIA BOT Identity
+global.namebot = '🩵 MICHI 🩵'
+global.packname = '🩵 MICHI WABOT 🩵'
+global.author = 'Wilker | © 2025 🩵'
+global.moneda = 'Dolar 🩵'
 
-global.namebot = 'michi wabot 🧃'
-global.packname = 'michi-wa-bot 🥞'
-global.author = 'wilker | © 2025 🪸'
-global.moneda = 'Mangos'
-
-// Technical Configuration
+// ⚙️ Technical Configuration
 global.libreria = 'Baileys'
 global.baileys = 'V 6.7.16'
-global.vs = '2.2.0'
+global.vs = '3.0.0'
 global.sessions = 'Sessions'
-global.jadi = 'JadiBots'
+global.jadi = 'Michibots'
 global.yukiJadibts = true
 
-// Channel Information
-global.namecanal = '❇️'
+// 📺 Channel Information - HOUSE ANIA
+global.namecanal = '🩵 HOUSE MICHI 🩵'
 global.idcanal = '120363403739366547@newsletter'
 global.idcanal2 = '120363403739366547@newsletter'
-global.canal = 'https://whatsapp.com/channel/0029Vb5pM031CYoMvQi2I02D'
+global.canal = 'https://whatsapp.com/channel/0029Vb724SDHltY4qGU9QS3S'
 global.canalreg = '120363402895449162@newsletter'
 
 global.ch = {
-  ch1: '120363420941524030@newsletter'
+  ch1: '120363420941524030@newsletter',  // Canal principal
+  ch2: '120363418827369713@newsletter'   // Canal secundario
 }
 
-// Bot Settings
-global.multiplier = 69
-global.maxwarn = 2
+// 🎮 Bot Settings
+global.multiplier = 100  // Experiencia más rápida
+global.maxwarn = 3       // Advertencias antes de ban
+global.limitawal = {     // Límites iniciales
+  premium: 1000,
+  free: 50,
+  mods: 5000
+}
 
-// File Watch for Auto-reload
+// 🌟 Theme Settings
+global.theme = {
+  name: 'Michi wabot',
+  version: '2.0.0',
+  emoji: '😏❤️🩵',
+  color: '#FF9EBD'
+}
+
+// 🤖 Auto-reply settings
+global.autoRead = true      // Leer mensajes automáticamente
+global.autoTyping = true    // Escribiendo...
+global.autoRecording = true // Grabando audio...
+
+// 📊 Database default
+global.db = {
+  chats: {},
+  users: {},
+  groups: {},
+  settings: {
+    welcome: true,
+    antilink: false,
+    antispam: true,
+    autosticker: true
+  }
+}
+
+// 🎵 Status messages
+global.status = [
+  { type: 'Playing', message: '🩵 Modo Kawaii' },
+  { type: 'Listening', message: ' 🩵 House Michi' },
+  { type: 'Watching', message: '✨ Comandos mágicos' }
+]
+
+// ⚡ File Watch for Auto-reload
 let file = fileURLToPath(import.meta.url)
 watchFile(file, () => {
   unwatchFile(file)
-  console.log(chalk.redBright("🔄 Se actualizó 'config.js'"))
+  console.log(chalk.hex('#FF9EBD')("❤️ Se actualizó 'config.js' - Michi wabot REINICIADO 🩵"))
   import(`file://${file}?update=${Date.now()}`)
 })
+
+// 🎉 Initial message
+console.log(chalk.hex('#FF9EBD')(`
+╔══════════════════════╗
+║   😏 Michi wabot 🫠     ║
+╠══════════════════════╣
+║ Versión: ${global.vs}
+║ Baileys: ${global.baileys}
+║ Dueño: Wilker
+║ Estado: ✅ ACTIVO
+╚══════════════════════╝
+`))
